@@ -1,5 +1,5 @@
-#ifndef HARDMONY_DBVIEW_H
-#define HARDMONY_DBVIEW_H
+#ifndef NV_INFO_VIEW_H
+#define NV_INFO_VIEW_H
 
 #include <View.h>
 #include <PopUpMenu.h>
@@ -58,4 +58,4 @@ class _EXPORT NvInfoView : public BView {
 		uint32				fLoadMemory;
 };
 
-#endif // HARDMONY_DBVIEW_H
+#endif
