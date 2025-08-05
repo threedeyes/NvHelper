@@ -32,8 +32,7 @@ void NvInfoApp::ReadyToRun()
 			alert->Go();
 		}
 	}
-
-	Quit();	
+	Quit();
 }
 
 

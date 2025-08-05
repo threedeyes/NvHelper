@@ -6,6 +6,7 @@ SRCS =  NvInfoView.cpp \
 		NvInfoApp.cpp \
 		NvrmApi.cpp \
 		NvDevice.cpp \
+		NvSettings.cpp \
 		ErrorUtils.cpp \
 		open-gpu-kernel-modules/src/common/shared/nvstatus/nvstatus.c
 RDEFS = NvInfo.rdef

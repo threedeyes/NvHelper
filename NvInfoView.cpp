@@ -22,25 +22,29 @@ NvInfoView::NvInfoView(BRect rect, const char name[])
 				B_WILL_DRAW | B_PULSE_NEEDED), fDevice(NULL), fData(NULL),
 				fMessageRunner(NULL), fPopUpMenu(NULL),
 				fOffscreenView(NULL), fOffscreenBitmap(NULL),
-				fTextMode(N_TEMPERATURE)
+				fTextMode(N_TEMPERATURE),
+				fCurrentTemp(0), fClockGPU(0), fClockMemory(0),
+				fClockVideo(0), fFreeMemory(0), fLoadMemory(0)
 {
-	fOffscreenView = new BView(Bounds(), "offscreenView", B_FOLLOW_NONE, 0);
-	fOffscreenBitmap = new BBitmap(Bounds(), B_RGBA32, true);
-	fOffscreenBitmap->AddChild(fOffscreenView);
 	SetViewColor(B_TRANSPARENT_32_BIT);
 }
 
 
 NvInfoView::NvInfoView(BMessage* message)
 	:	BView(message), fDevice(NULL), fData(NULL), fMessageRunner(NULL), fPopUpMenu(NULL),
-					fOffscreenView(NULL), fOffscreenBitmap(NULL)
+				fOffscreenView(NULL), fOffscreenBitmap(NULL),
+				fCurrentTemp(0), fClockGPU(0), fClockMemory(0),
+				fClockVideo(0), fFreeMemory(0), fLoadMemory(0)
 {
+	fGPUName.SetTo("None");
+	for (int i = 0; i < HISTORY_SIZE; i++) {
+		fHistGPULoad[i] = 0;
+		fHistMemUsed[i] = 0;
+	}
 	fOffscreenView = new BView(Bounds(), "offscreenView", B_FOLLOW_NONE, 0);
 	fOffscreenBitmap = new BBitmap(Bounds(), B_RGBA32, true);
 	fOffscreenBitmap->AddChild(fOffscreenView);
 	SetViewColor(B_TRANSPARENT_32_BIT);
-
-	fTextMode = message->FindInt32("textMode");
 }
 
 
@@ -74,7 +78,6 @@ NvInfoView::Archive(BMessage* archive, bool deep) const
 	BView::Archive(archive, deep);
 	archive->AddString("add_on", NV_INFO_APP_SIGNATURE);
 	archive->AddString("class", REPLICANT_NAME);
-	archive->AddInt32("textMode", fTextMode);
 	return B_OK;
 }
 
@@ -82,11 +85,17 @@ NvInfoView::Archive(BMessage* archive, bool deep) const
 void
 NvInfoView::AttachedToWindow()
 {
+	fSettings = new NvSettings("NvInfoReplicant");
+	fSettings->Load();
+	fTextMode = fSettings->GetInt32("textMode", N_TEMPERATURE);
+
+	BView::AttachedToWindow();
+
 	fMessageRunner = new BMessageRunner(BMessenger(this), new BMessage(N_UPDATE), 250000);
 	SetViewColor(Parent()->ViewColor());
 
 	fPopUpMenu = new BPopUpMenu("NvInfoMenu");
-
+	fDevicesMenu = new BMenu("Devices");
 	fTextMenu = new BMenu("Text value");
 	fTextMenu->SetRadioMode(true);
 	fTextMenu->AddItem(new BMenuItem("GPU Temperature (°)", new BMessage(N_TEMPERATURE)));
@@ -100,6 +109,7 @@ NvInfoView::AttachedToWindow()
 	fTextMenu->AddItem(new BMenuItem("Used Memory (%)", new BMessage(N_USED_MEMORY)));
 	fTextMenu->AddItem(new BMenuItem("Load Memory (%)", new BMessage(N_LOAD_MEMORY)));
 	fTextMenu->SetTargetForItems(this);
+	fPopUpMenu->AddItem(fDevicesMenu);
 	fPopUpMenu->AddItem(fTextMenu);
 	fPopUpMenu->AddSeparatorItem();
 	fPopUpMenu->AddItem(new BMenuItem("About NvInfo", new BMessage(B_ABOUT_REQUESTED)));
@@ -109,7 +119,7 @@ NvInfoView::AttachedToWindow()
 	
 	if (fDevice == NULL) {
 		fCurrentTemp = 0;
-		for (int i = 0; i < 128; i++) {
+		for (int i = 0; i < HISTORY_SIZE; i++) {
 			fHistGPULoad[i] = 0;
 			fHistMemUsed[i] = 0;
 		}
@@ -117,7 +127,16 @@ NvInfoView::AttachedToWindow()
 		fDevice = new NvDevice("/dev/nvidia0", 0);
 
 		NvrmApi &rm = fDevice->Rm();
-	
+
+		NV2080_CTRL_GPU_GET_NAME_STRING_PARAMS devNameParam {
+			.gpuNameStringFlags = NV2080_CTRL_GPU_GET_NAME_STRING_FLAGS_TYPE_ASCII,
+		};
+		rm.Control(fDevice->HSubdevice(), NV2080_CTRL_CMD_GPU_GET_NAME_STRING, &devNameParam, sizeof(devNameParam));
+		fGPUName.SetTo((char*)devNameParam.gpuNameString.ascii);
+		SetToolTip(fGPUName);
+
+		fDevicesMenu->AddItem(new BMenuItem(fGPUName, new BMessage(N_DEVICE_IDX + 0)));
+
 		NvHandle hUserSharedData = 0;
 		NV00DE_ALLOC_PARAMETERS params {
 			.polledDataMask =
@@ -134,6 +153,15 @@ NvInfoView::AttachedToWindow()
 	}
 }
 
+void
+NvInfoView::DetachedFromWindow()
+{
+	fSettings->SetInt32("textMode", fTextMode);
+	fSettings->Save();
+	delete fSettings;
+
+	BView::DetachedFromWindow();
+}
 
 void
 NvInfoView::MessageReceived(BMessage* message)
@@ -150,7 +178,7 @@ NvInfoView::MessageReceived(BMessage* message)
 				fFreeMemory = fData->pmaMemoryInfo.freePmaMemory;
 				fLoadMemory = fData->perfDevUtil.info.memoryPercentBusy;
 
-				for (int i = 128 - 1; i > 0; i--) {
+				for (int i = HISTORY_SIZE - 1; i > 0; i--) {
 					fHistGPULoad[i] = fHistGPULoad[i - 1];
 					fHistMemUsed[i] = fHistMemUsed[i - 1];
 				}

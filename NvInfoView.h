@@ -8,6 +8,7 @@
 #include <Rect.h>
 
 #include "NvDevice.h"
+#include "NvSettings.h"
 
 enum {
 	N_ABOUT	 			= 'NAbt',
@@ -22,7 +23,10 @@ enum {
 	N_LOAD_MEMORY		= 'NMld',
 	N_FREE_MEMORY		= 'NMfr',
 	N_USED_MEMORY		= 'NMus',
+	N_DEVICE_IDX		= 10000
 };
+
+#define HISTORY_SIZE 128
 
 class _EXPORT NvInfoView : public BView {
 	public:
@@ -34,15 +38,19 @@ class _EXPORT NvInfoView : public BView {
 		virtual	status_t	Archive(BMessage* archive, bool deep = true) const;
 
 		virtual void		AttachedToWindow();
+		virtual	void		DetachedFromWindow();
 		virtual void		Draw(BRect updateRect);
 		virtual void		MessageReceived(BMessage* message);
 		virtual void		MouseDown(BPoint where);
+
 	private:
+		NvSettings*			fSettings;
 
 		BMessenger*			fMessenger;
 		BMessageRunner*		fMessageRunner;
 
 		BPopUpMenu*			fPopUpMenu;
+		BMenu*				fDevicesMenu;
 		BMenu*				fTextMenu;
 		
 		BView*				fOffscreenView;
@@ -62,6 +70,8 @@ class _EXPORT NvInfoView : public BView {
 		uint32 				fClockVideo;
 		uint64				fFreeMemory;
 		uint32				fLoadMemory;
+
+		BString				fGPUName;
 };
 
 #endif
