@@ -4,6 +4,8 @@
 #include <View.h>
 #include <PopUpMenu.h>
 #include <MessageRunner.h>
+#include <Bitmap.h>
+#include <Rect.h>
 
 #include "NvDevice.h"
 
@@ -41,6 +43,9 @@ class _EXPORT NvInfoView : public BView {
 		BMessageRunner*		fMessageRunner;
 
 		BPopUpMenu*			fPopUpMenu;
+		
+		BView*				fOffscreenView;
+		BBitmap*			fOffscreenBitmap;
 
 		NvDevice*			fDevice;
 		volatile NV00DE_SHARED_DATA* fData;

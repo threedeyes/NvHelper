@@ -20,15 +20,26 @@ extern "C" BView *instantiate_deskbar_item(float maxWidth, float maxHeight)
 NvInfoView::NvInfoView(BRect rect, const char name[])
 	:	BView(rect, name, B_FOLLOW_ALL_SIDES,
 				B_WILL_DRAW | B_PULSE_NEEDED), fDevice(NULL), fData(NULL),
-				fMessageRunner(NULL), fPopUpMenu(NULL), fTextMode(N_TEMPERATURE)
+				fMessageRunner(NULL), fPopUpMenu(NULL),
+				fOffscreenView(NULL), fOffscreenBitmap(NULL),
+				fTextMode(N_TEMPERATURE)
 {
-	SetViewColor(B_TRANSPARENT_COLOR);
+	fOffscreenView = new BView(Bounds(), "offscreenView", B_FOLLOW_NONE, 0);
+	fOffscreenBitmap = new BBitmap(Bounds(), B_RGBA32, true);
+	fOffscreenBitmap->AddChild(fOffscreenView);
+	SetViewColor(B_TRANSPARENT_32_BIT);
 }
 
 
 NvInfoView::NvInfoView(BMessage* message)
-	:	BView(message), fDevice(NULL), fData(NULL), fMessageRunner(NULL), fPopUpMenu(NULL)
+	:	BView(message), fDevice(NULL), fData(NULL), fMessageRunner(NULL), fPopUpMenu(NULL),
+					fOffscreenView(NULL), fOffscreenBitmap(NULL)
 {
+	fOffscreenView = new BView(Bounds(), "offscreenView", B_FOLLOW_NONE, 0);
+	fOffscreenBitmap = new BBitmap(Bounds(), B_RGBA32, true);
+	fOffscreenBitmap->AddChild(fOffscreenView);
+	SetViewColor(B_TRANSPARENT_32_BIT);
+
 	fTextMode = message->FindInt32("textMode");
 }
 
@@ -43,6 +54,8 @@ NvInfoView::~NvInfoView()
 	}
 	if (fPopUpMenu != NULL)
 		delete fPopUpMenu;
+
+	delete fOffscreenBitmap;
 }
 
 
@@ -71,12 +84,7 @@ NvInfoView::AttachedToWindow()
 {
 	fMessageRunner = new BMessageRunner(BMessenger(this), new BMessage(N_UPDATE), 250000);
 	SetViewColor(Parent()->ViewColor());
-	
-	BFont font = be_plain_font;
-	font.SetFamilyAndStyle("Noto Sans","Bold");
-	font.SetSize(font.Size() - 1);
-	SetFont(&font);	
-	
+
 	fPopUpMenu = new BPopUpMenu("NvInfoMenu");
 
 	BMenu *valueMenu = new BMenu("Text value");
@@ -224,52 +232,64 @@ NvInfoView::Draw(BRect updateRect)
 			break;
 	}
 
+	fOffscreenBitmap->Lock();
+
+	BFont font = be_plain_font;
+	font.SetFamilyAndStyle("Noto Sans","Bold");
+	font.SetSize(font.Size() - 1);
+	fOffscreenView->SetFont(&font);
+
 	font_height height;
-	GetFontHeight(&height);
-	BRect rect = Bounds();
+	fOffscreenView->GetFontHeight(&height);
+	BRect rect = fOffscreenView->Bounds();
 	BRect canvas = rect;
 	canvas.InsetBy(1, 1);
-	float width = StringWidth(string) + 4;
+	float width = fOffscreenView->StringWidth(string) + 4;
 	float x = 1 + (rect.Width() - width)/2;
 	float y = height.ascent + (rect.Height() - (height.ascent + height.descent))/2;
 
-	SetDrawingMode(B_OP_COPY);
-	SetHighColor(20, 90, 0);
-	FillRect(canvas);
+	fOffscreenView->SetDrawingMode(B_OP_COPY);
+	fOffscreenView->SetHighColor(20, 90, 0);
+	fOffscreenView->FillRect(canvas);
 
-	SetDrawingMode(B_OP_ALPHA);
+	fOffscreenView->SetDrawingMode(B_OP_ALPHA);
 
 	int i = 1;
-	SetHighColor(150, 100, 5);
-	for (float x = Bounds().Width() - 1; x > 0; x--) {
+	fOffscreenView->SetHighColor(150, 100, 5);
+	for (float x = fOffscreenView->Bounds().Width() - 1; x > 0; x--) {
 		float val = (float)((float)fHistMemUsed[i++] / (float)100.0);
-		StrokeLine(BPoint(x, canvas.bottom), BPoint(x, canvas.bottom - (canvas.Height() * val)));
+		fOffscreenView->StrokeLine(BPoint(x, canvas.bottom), BPoint(x, canvas.bottom - (canvas.Height() * val)));
 	}
 
 	i = 1;
 	float v0 = (float)fHistGPULoad[0] / (float)100.0;
-	BPoint beg(Bounds().right, canvas.bottom - (canvas.Height() * v0));
-	MovePenTo(beg);
-	SetHighColor(80, 200, 30);
-	for (float x = Bounds().Width() - 1; x > 0; x--) {
+	BPoint beg(fOffscreenView->Bounds().right, canvas.bottom - (canvas.Height() * v0));
+	fOffscreenView->MovePenTo(beg);
+	fOffscreenView->SetHighColor(80, 200, 30);
+	for (float x = fOffscreenView->Bounds().Width() - 1; x > 0; x--) {
 		float v1 = (float)((float)fHistGPULoad[i++] / (float)100.0);
 		BPoint end(x, canvas.bottom - (canvas.Height() * v1));
-		StrokeLine(end);
+		fOffscreenView->StrokeLine(end);
 	}
 
-	SetHighColor(0, 0, 0);
-	StrokeRect(rect);
+	fOffscreenView->SetHighColor(0, 0, 0);
+	fOffscreenView->StrokeRect(rect);
 
-	SetLowColor(20, 90, 0);
-	SetHighColor(0, 0, 0);
-	DrawString(string, BPoint(x - 1, y));
-	DrawString(string, BPoint(x + 1, y));
-	DrawString(string, BPoint(x , y - 1));
-	DrawString(string, BPoint(x , y + 1));
+	fOffscreenView->SetLowColor(20, 90, 0);
+	fOffscreenView->SetHighColor(0, 0, 0);
+	fOffscreenView->DrawString(string, BPoint(x - 1, y));
+	fOffscreenView->DrawString(string, BPoint(x + 1, y));
+	fOffscreenView->DrawString(string, BPoint(x , y - 1));
+	fOffscreenView->DrawString(string, BPoint(x , y + 1));
 
-	SetLowColor(20, 90, 0);
-	SetHighColor(255, 255, 255);
-	DrawString(string, BPoint(x, y));
+	fOffscreenView->SetLowColor(20, 90, 0);
+	fOffscreenView->SetHighColor(255, 255, 255);
+	fOffscreenView->DrawString(string, BPoint(x, y));
+	
+	fOffscreenView->Sync();
+	SetDrawingMode(B_OP_COPY);
+	DrawBitmap(fOffscreenBitmap, rect, rect);
+	fOffscreenBitmap->Unlock();
 }
 
 void
