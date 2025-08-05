@@ -43,6 +43,7 @@ class _EXPORT NvInfoView : public BView {
 		BMessageRunner*		fMessageRunner;
 
 		BPopUpMenu*			fPopUpMenu;
+		BMenu*				fTextMenu;
 		
 		BView*				fOffscreenView;
 		BBitmap*			fOffscreenBitmap;

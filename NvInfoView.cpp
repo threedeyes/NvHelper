@@ -87,19 +87,20 @@ NvInfoView::AttachedToWindow()
 
 	fPopUpMenu = new BPopUpMenu("NvInfoMenu");
 
-	BMenu *valueMenu = new BMenu("Text value");
-	valueMenu->AddItem(new BMenuItem("GPU Temperature (°)", new BMessage(N_TEMPERATURE)));
-	valueMenu->AddItem(new BMenuItem("GPU Load (%)", new BMessage(N_LOAD_GPU)));
-	valueMenu->AddSeparatorItem();
-	valueMenu->AddItem(new BMenuItem("Graphics Clock (㎒)", new BMessage(N_CLOCK_GRAPHICS)));
-	valueMenu->AddItem(new BMenuItem("Memory Clock (㎒)", new BMessage(N_CLOCK_MEMORY)));
-	valueMenu->AddItem(new BMenuItem("Video Clock (㎒)", new BMessage(N_CLOCK_VIDEO)));
-	valueMenu->AddSeparatorItem();
-	valueMenu->AddItem(new BMenuItem("Free Memory (Gb)", new BMessage(N_FREE_MEMORY)));
-	valueMenu->AddItem(new BMenuItem("Used Memory (%)", new BMessage(N_USED_MEMORY)));
-	valueMenu->AddItem(new BMenuItem("Load Memory (%)", new BMessage(N_LOAD_MEMORY)));
-	valueMenu->SetTargetForItems(this);
-	fPopUpMenu->AddItem(valueMenu);
+	fTextMenu = new BMenu("Text value");
+	fTextMenu->SetRadioMode(true);
+	fTextMenu->AddItem(new BMenuItem("GPU Temperature (°)", new BMessage(N_TEMPERATURE)));
+	fTextMenu->AddItem(new BMenuItem("GPU Load (%)", new BMessage(N_LOAD_GPU)));
+	fTextMenu->AddSeparatorItem();
+	fTextMenu->AddItem(new BMenuItem("Graphics Clock (㎒)", new BMessage(N_CLOCK_GRAPHICS)));
+	fTextMenu->AddItem(new BMenuItem("Memory Clock (㎒)", new BMessage(N_CLOCK_MEMORY)));
+	fTextMenu->AddItem(new BMenuItem("Video Clock (㎒)", new BMessage(N_CLOCK_VIDEO)));
+	fTextMenu->AddSeparatorItem();
+	fTextMenu->AddItem(new BMenuItem("Free Memory (Gb)", new BMessage(N_FREE_MEMORY)));
+	fTextMenu->AddItem(new BMenuItem("Used Memory (%)", new BMessage(N_USED_MEMORY)));
+	fTextMenu->AddItem(new BMenuItem("Load Memory (%)", new BMessage(N_LOAD_MEMORY)));
+	fTextMenu->SetTargetForItems(this);
+	fPopUpMenu->AddItem(fTextMenu);
 	fPopUpMenu->AddSeparatorItem();
 	fPopUpMenu->AddItem(new BMenuItem("About NvInfo", new BMessage(B_ABOUT_REQUESTED)));
 	fPopUpMenu->AddSeparatorItem();
@@ -302,6 +303,7 @@ NvInfoView::MouseDown(BPoint where)
 		return;
 
 	if (buttons == B_SECONDARY_MOUSE_BUTTON) {
+		fTextMenu->FindItem(fTextMode)->SetMarked(true);
 		fPopUpMenu->Go(ConvertToScreen(BPoint(0, 0)), true, false, true);
 	}
 }
